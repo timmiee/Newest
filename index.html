@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waterdrop Survivor - Dopamin Edition</title>
+
+<!-- Three.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.min.js"></script>
+
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; background:#111; }
+  canvas { display:block; }
+  #hud { position:absolute; top:10px; left:10px; color:#fff; font-family:sans-serif; z-index:10; }
+  #lvlup { position:absolute; top:50%; left:50%; transform:translate(-50%, -50%) scale(0); font-size:48px; color:#ff0; text-shadow:0 0 10px #fff; z-index:20; pointer-events:none; }
+</style>
+
+</head>
+<body>
+<div id="hud">
+  HP: <span id="hp">100</span> |
+  LVL: <span id="lvl">1</span> |
+  KILLS: <span id="kills">0</span>
+</div>
+<div id="lvlup">❗️💥 LEVEL UP ❗️💥</div>
+
+<script>
+let scene, camera, renderer;
+let player, enemies = [], meteors = [], expGems = [], particles = [];
+let lvl = 1, kills = 0, hp = 100, exp = 0;
+let swipeStart = null;
+
+function init() {
+  // Scene
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+  camera.position.set(0,30,30);
+  camera.lookAt(0,0,0);
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // Player
+  const geo = new THREE.SphereGeometry(1,16,16);
+  const mat = new THREE.MeshStandardMaterial({color:0x00f, roughness:0.5});
+  player = new THREE.Mesh(geo, mat);
+  scene.add(player);
+  player.position.set(0,1,0);
+  player.speed = 0.5;
+  player.dashCooldown = 0;
+
+  // Lights
+  const light = new THREE.DirectionalLight(0xffffff,1);
+  light.position.set(10,20,10);
+  scene.add(light);
+  scene.add(new THREE.AmbientLight(0x404040));
+
+  // Ground
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(100,100,10,10), new THREE.MeshStandardMaterial({color:0x222}));
+  ground.rotation.x = -Math.PI/2;
+  scene.add(ground);
+
+  // Event listeners for swipe dash
+  window.addEventListener('touchstart', e => { swipeStart = e.touches[0]; });
+  window.addEventListener('touchend', e => {
+    if(!swipeStart) return;
+    const swipeEnd = e.changedTouches[0];
+    const dx = swipeEnd.clientX - swipeStart.clientX;
+    const dy = swipeEnd.clientY - swipeStart.clientY;
+    dash(dx, dy);
+    swipeStart = null;
+  });
+
+  animate();
+}
+
+// Dash function
+function dash(dx, dy) {
+  if(player.dashCooldown>0) return;
+  const length = Math.sqrt(dx*dx + dy*dy);
+  if(length<5) return; // ignore tiny swipes
+  const dirX = dx/length;
+  const dirZ = -dy/length; // invert Y to Z
+  player.position.x += dirX*5;
+  player.position.z += dirZ*5;
+  player.dashCooldown = 60; // frames
+}
+
+// Level up logic
+function lvlUp() {
+  lvl++;
+  document.getElementById('lvl').innerText = lvl;
+
+  // Dopamin effect
+  const lvlupDiv = document.getElementById('lvlup');
+  lvlupDiv.style.transform = 'translate(-50%,-50%) scale(1.5)';
+  lvlupDiv.style.transition = 'transform 0.5s ease-out';
+  setTimeout(()=>{ lvlupDiv.style.transform='translate(-50%,-50%) scale(0)'; },800);
+  playLevelUpSound(lvl<=2?0:1);
+
+  // Progression
+  if(lvl===3) showWeaponChoice();
+}
+
+// Weapon choice popup
+function showWeaponChoice() {
+  alert("Choose your weapon now!"); // placeholder, kan göra snygg HTML senare
+}
+
+// Play level up sound
+function playLevelUpSound(type) {
+  const audio = new Audio();
+  if(type===0) audio.src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg";
+  else audio.src="https://actions.google.com/sounds/v1/cartoon/metal_twang.ogg";
+  audio.play();
+}
+
+// Animate
+function animate() {
+  requestAnimationFrame(animate);
+
+  // Cooldown
+  if(player.dashCooldown>0) player.dashCooldown--;
+
+  // Example enemy update
+  enemies.forEach(e => { e.position.x += (Math.random()-0.5)*0.1; e.position.z += (Math.random()-0.5)*0.1; });
+
+  // Example meteors / exp / particles
+  meteors = meteors.filter(m => m.update ? m.update()!==false : true);
+  expGems.forEach(g => g.update ? g.update(player.position) : null);
+  particles = particles.filter(p => p.update ? p.update()!==false : true);
+
+  renderer.render(scene,camera);
+}
+
+try{ init(); } catch(e){ console.error(e); alert("Game Error: "+e.message); }
+
+</script>
+</body>
+</html>
